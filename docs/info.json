@@ -1,0 +1,6 @@
+{
+  "project_name": "Obsidian RAG",
+  "purpose": "The power of the RAG... on the device in my hand.",
+  "short_description": "Obsidian RAG is a privacy-first knowledge assistant that transforms an Obsidian vault into an intelligent search and question-answering system. It solves the problem of scattered, hard-to-retrieve notes by using Retrieval-Augmented Generation with local embeddings and a self-hosted language model. The system indexes markdown files, retrieves relevant context, and generates grounded, citation-aware responses. Built for students, researchers, and knowledge workers, it keeps data fully offline and secure. Expected outcomes include faster insights, reduced information overload, and a seamless way to think, write, and discover ideas across personal knowledge bases. All while maintaining full user control and transparency. No cloud dependencies required.",
+  "semester": "sp26"
+}
