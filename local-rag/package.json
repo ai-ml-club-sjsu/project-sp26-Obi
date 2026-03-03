@@ -12,8 +12,8 @@
     "preview": "vite preview"
   },
   "build": {
-    "appId": "com.yourname.myelectronapp",
-    "productName": "MyElectronApp",
+    "appId": "com.durpdur.obi",
+    "productName": "Obi",
     "files": [
       "dist/**",
       "dist-electron/**",
