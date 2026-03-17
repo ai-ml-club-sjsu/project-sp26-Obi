@@ -7,6 +7,14 @@ export type Msg = {
     content: string;
 };
 
+export type SearchResult = {
+    chunkId: number
+    documentPath: string
+    fileName: string
+    content: string
+    distance: number
+}
+
 export type SidecarStatus = "stopped" | "starting" | "running" | "error";
 
 export type LlamaStatus = {
@@ -20,9 +28,6 @@ export interface LlamaApi {
     start(): Promise<LlamaStatus>;
     status(): Promise<LlamaStatus>;
     stop(): Promise<LlamaStatus>;
-
-    // Non-streaming chat
-    chat(messages: Msg[]): Promise<any>;
 
     // Streaming
     chatStreamStart(params: {
@@ -46,8 +51,58 @@ export interface LlamaApi {
     ): () => void;
 }
 
+export
+
 declare global {
     interface Window {
         llama: LlamaApi;
+
+        api: {
+            rag: {
+                indexDirectory: (rootPath: string) => Promise<{
+                    indexedCount: number
+                    skippedCount: number
+                }>
+                indexFile: (filePath: string) => Promise<unknown>
+                search: (
+                    query: string,
+                    limit?: number
+                ) => Promise<
+                    Array<{
+                        chunkId: number
+                        documentPath: string
+                        fileName: string
+                        content: string
+                        distance: number
+                    }>
+                >
+            }
+
+            embedder: {
+                start: () => Promise<{
+                    status: string
+                    port: number
+                    baseUrl: string
+                }>
+                stop: () => Promise<{
+                    status: string
+                    port: number
+                    baseUrl: string
+                }>
+                status: () => Promise<{
+                    status: string
+                    port: number
+                    baseUrl: string
+                }>
+            }
+
+        }
+
+        watcher: {
+            start: (rootPath: string) => Promise<{ status: string; rootPath: string | null }>
+            stop: () => Promise<{ status: string; rootPath: string | null }>
+            status: () => Promise<{ status: string; rootPath: string | null }>
+            pickDirectory: () => Promise<{ canceled: boolean; path: string | null }>
+        }
     }
 }

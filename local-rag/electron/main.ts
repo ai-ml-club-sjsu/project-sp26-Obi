@@ -1,9 +1,11 @@
-import { app, BrowserWindow, ipcMain } from "electron"
+import { app, BrowserWindow, ipcMain, dialog } from "electron"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { LlamaSidecar } from "./llamaSidecar.js";
 import { EmbedSidecar } from "./embedSidecar.js";
-import fs from "node:fs/promises";
+import { VectorStore } from "./vectorStore.js";
+import { initDatabase } from "./database.js";
+import { FileWatcher } from "./fileWatcher.js";
 
 // -- Developer Mode Check -----------------------------
 const isDev = !app.isPackaged // Packaged means not developer, not packaged means developer mode
@@ -19,9 +21,7 @@ This is useful for building paths relative to this module (e.g., preload.ts).
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-/* - Variables shared between  -----------
-- llama:chat (deprecated)
-- llama:chat_stream_start
+/* - Chat Setting Variables -----------
 */
 const chatModelTemperature = 0.2;
 
@@ -33,11 +33,10 @@ handlers using ipcRenderer.invoke, limiting what the frontend can access.
 llama:start
 llama:status
 llama:stop
-llama:chat
 */
 const llama = new LlamaSidecar(); // Single sidecar instance for chatting (Qwen 3.5 currently)
 
-// sidecar lifecycle and deprecated chat handlers
+// sidecar lifecycle
 function registerLlamaIpc() {
     ipcMain.handle("llama:start", async () => {
         await llama.start();
@@ -51,15 +50,6 @@ function registerLlamaIpc() {
     ipcMain.handle("llama:stop", async () => {
         llama.stop();
         return llama.getStatus();
-    });
-
-    ipcMain.handle("llama:chat", async (_event, messages) => {
-        return await llama.chatCompletions({
-            model: "local-model",
-            messages,
-            temperature: chatModelTemperature,
-            stream: false,
-        });
     });
 }
 
@@ -187,39 +177,77 @@ ipcMain.on("llama:chat_stream_cancel", (event) => {
 */
 const embedder = new EmbedSidecar();
 
-ipcMain.handle("embed:file", async (_event, filePath: string) => {
-    // 1) read file
-    const ext = path.extname(filePath).toLowerCase();
+function registerEmbedIpc() {
+    ipcMain.handle("embedder:start", async () => {
+        await embedder.start();
+        return embedder.getStatus();
+    });
 
-    // For now: assume plain text / markdown
-    // (PDF/DOCX need extractors; see notes below)
-    if (![".txt", ".md"].includes(ext)) {
-        throw new Error(`Unsupported file type: ${ext}. Add a parser/extractor for this type.`);
-    }
+    ipcMain.handle("embedder:stop", async () => {
+        embedder.stop();
+        return embedder.getStatus();
+    });
 
-    const raw = await fs.readFile(filePath, "utf-8");
+    ipcMain.handle("embedder:status", async () => {
+        return embedder.getStatus();
+    });
+}
 
-    // 2) chunk
-    const chunks = chunkText(raw);
+/* - VectorStore(RAG) IPC handler -----------------------
+*/
 
-    // 3) embed
-    const embeddings = await embedder.embed(chunks);
+const vectorStore = new VectorStore(
+    (text) => embedder.embedOne(text),
+    (texts) => embedder.embedMany(texts),
+    768 // make sure this matches your actual model output size
+)
 
-    // return both so the renderer can map vectors back to text
-    return { filePath, chunks, embeddings };
-});
+function registerRAGIpc() {
+    ipcMain.handle("rag:indexDirectory", async (_event, rootPath: string) => {
+        return vectorStore.indexDirectory(rootPath)
+    })
 
-// Simple chunker
-function chunkText(text: string, maxChars = 1200, overlap = 200) {
-    const chunks: string[] = [];
-    let i = 0;
-    while (i < text.length) {
-        const end = Math.min(i + maxChars, text.length);
-        chunks.push(text.slice(i, end));
-        i = end - overlap;
-        if (i < 0) i = 0;
-    }
-    return chunks.filter(Boolean);
+    ipcMain.handle("rag:indexFile", async (_event, filePath: string) => {
+        return vectorStore.indexFile(filePath)
+    })
+
+    ipcMain.handle("rag:search", async (_event, query: string, limit = 5) => {
+        return vectorStore.search(query, limit)
+    })
+}
+/* - FileWatcher IPC handler -----------------------
+*/
+const fileWatcher = new FileWatcher(vectorStore);
+function registerFileWatcherIpc() {
+    ipcMain.handle("watcher:start", async (_event, rootPath: string) => {
+        await fileWatcher.start(rootPath)
+        return fileWatcher.getStatus()
+    })
+
+    ipcMain.handle("watcher:stop", async () => {
+        await fileWatcher.stop()
+        return fileWatcher.getStatus()
+    })
+
+    ipcMain.handle("watcher:status", async () => {
+        return fileWatcher.getStatus()
+    })
+
+    ipcMain.handle("watcher:pickDirectory", async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender)
+        const result = await dialog.showOpenDialog(win!, {
+            properties: ["openDirectory"],
+            title: "Choose a folder to watch",
+        })
+
+        if (result.canceled || result.filePaths.length === 0) {
+            return { canceled: true, path: null }
+        }
+
+        const selectedPath = result.filePaths[0]
+        await fileWatcher.setPath(selectedPath)
+        return { canceled: false, path: selectedPath }
+    })
 }
 
 /* - Electron Main Process -----------------------
@@ -255,8 +283,17 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-    registerLlamaIpc();
-    createWindow();
+    try {
+        initDatabase();
+        registerLlamaIpc();
+        registerEmbedIpc();
+        registerRAGIpc();
+        registerFileWatcherIpc();
+
+        createWindow();
+    } catch (error) {
+        console.error("❌ Startup Error:", error);
+    }
 });
 
 app.on("activate", () => {
@@ -268,5 +305,7 @@ app.on("window-all-closed", () => {
 })
 
 app.on("before-quit", () => {
+    fileWatcher.stop();
     llama.stop();
+    embedder?.stop();
 });

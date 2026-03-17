@@ -1,4 +1,3 @@
-// preload.ts
 import { contextBridge, ipcRenderer } from "electron";
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
@@ -13,10 +12,6 @@ contextBridge.exposeInMainWorld("llama", {
     start: () => ipcRenderer.invoke("llama:start"),
     status: () => ipcRenderer.invoke("llama:status"),
     stop: () => ipcRenderer.invoke("llama:stop"),
-
-    // non-streaming chat (Deprecated)
-    chat: (messages: Msg[], temperature?: number) =>
-        ipcRenderer.invoke("llama:chat", messages, temperature),
 
     // Chat Streaming controls
     chatStreamStart: (params: { requestId: string; messages: Msg[]; temperature?: number }) =>
@@ -50,8 +45,28 @@ contextBridge.exposeInMainWorld("llama", {
     },
 });
 
-contextBridge.exposeInMainWorld("embed", {
-    file: (filePath: string) => {
-        ipcRenderer.invoke("embed:file", filePath);
-    }
-});
+contextBridge.exposeInMainWorld("api", {
+    rag: {
+        indexDirectory: (rootPath: string) =>
+            ipcRenderer.invoke("rag:indexDirectory", rootPath),
+
+        indexFile: (filePath: string) =>
+            ipcRenderer.invoke("rag:indexFile", filePath),
+
+        search: (query: string, limit?: number) =>
+            ipcRenderer.invoke("rag:search", query, limit),
+    },
+
+    embedder: {
+        start: () => ipcRenderer.invoke("embedder:start"),
+        stop: () => ipcRenderer.invoke("embedder:stop"),
+        status: () => ipcRenderer.invoke("embedder:status"),
+    },
+})
+
+contextBridge.exposeInMainWorld("watcher", {
+    start: (rootPath: string) => ipcRenderer.invoke("watcher:start", rootPath),
+    stop: () => ipcRenderer.invoke("watcher:stop"),
+    status: () => ipcRenderer.invoke("watcher:status"),
+    pickDirectory: () => ipcRenderer.invoke("watcher:pickDirectory"),
+})

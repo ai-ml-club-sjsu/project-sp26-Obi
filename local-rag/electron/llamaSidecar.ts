@@ -122,7 +122,7 @@ export class LlamaSidecar {
         try {
             await this.waitUntilReady(this.baseUrl);
             this.status = "running";
-            console.log("llama-server is running at ", this.baseUrl);
+            console.log("chat-server is running at ", this.baseUrl);
         } catch (e) {
             this.status = "error";
             this.stop();
@@ -135,19 +135,5 @@ export class LlamaSidecar {
         this.proc.kill();
         this.proc = null;
         this.status = "stopped";
-    }
-
-    async chatCompletions(payload: any) {
-        if (this.status !== "running") throw new Error("Sidecar not running");
-        const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(`llama-server error ${res.status}: ${txt}`);
-        }
-        return await res.json();
     }
 }

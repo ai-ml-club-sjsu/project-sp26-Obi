@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import FileWatcherPicker from "./components/FileWatcherPicker";
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 type Status = { status: "stopped" | "starting" | "running" | "error"; port: number; baseUrl: string };
@@ -56,6 +57,7 @@ function App() {
             setLastError(null);
             try {
                 await window.llama.start();
+                await window.api.embedder.start();
                 const st: Status = await window.llama.status();
                 if (!mounted) return;
                 setStatus(st);
@@ -200,6 +202,7 @@ function App() {
                 <div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
                         <h2 style={{ margin: 0 }}>Local Chatbot</h2>
+                        <FileWatcherPicker />
                         <span style={statusStyle}>
                             <span
                                 style={{
