@@ -59,11 +59,6 @@ declare global {
 
         api: {
             rag: {
-                indexDirectory: (rootPath: string) => Promise<{
-                    indexedCount: number
-                    skippedCount: number
-                }>
-                indexFile: (filePath: string) => Promise<unknown>
                 search: (
                     query: string,
                     limit?: number

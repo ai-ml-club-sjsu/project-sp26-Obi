@@ -203,13 +203,13 @@ const vectorStore = new VectorStore(
 )
 
 function registerRAGIpc() {
-    ipcMain.handle("rag:indexDirectory", async (_event, rootPath: string) => {
-        return vectorStore.indexDirectory(rootPath)
-    })
+    // ipcMain.handle("rag:indexDirectory", async (_event, rootPath: string) => {
+    //     return vectorStore.indexDirectory(rootPath)
+    // })
 
-    ipcMain.handle("rag:indexFile", async (_event, filePath: string) => {
-        return vectorStore.indexFile(filePath)
-    })
+    // ipcMain.handle("rag:indexFile", async (_event, filePath: string) => {
+    //     return vectorStore.indexFile(filePath)
+    // })
 
     ipcMain.handle("rag:search", async (_event, query: string, limit = 5) => {
         return vectorStore.search(query, limit)
@@ -284,10 +284,10 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     try {
-        initDatabase();
-        registerLlamaIpc();
-        registerEmbedIpc();
-        registerRAGIpc();
+        initDatabase();     // Starts on App startup
+        registerLlamaIpc(); // Called from frontend useEffect
+        registerEmbedIpc(); // Called from frontend useEffect
+        registerRAGIpc();   // Called from frontend search()
         registerFileWatcherIpc();
 
         createWindow();

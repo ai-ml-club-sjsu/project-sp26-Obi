@@ -34,7 +34,7 @@ export class FileWatcher {
 
         this.watcher = chokidar.watch(rootPath, {
             persistent: true,
-            ignoreInitial: true,
+            ignoreInitial: false,
             awaitWriteFinish: {
                 stabilityThreshold: 500,
                 pollInterval: 100,

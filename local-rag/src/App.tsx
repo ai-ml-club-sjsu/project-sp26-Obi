@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import FileWatcherPicker from "./components/FileWatcherPicker";
+import type { SearchResult } from "./types/global";
 
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 type Status = { status: "stopped" | "starting" | "running" | "error"; port: number; baseUrl: string };
 
 function App() {
-    const [ready, setReady] = useState(false);
-    const [status, setStatus] = useState<Status | null>(null);
+    const [chatModelReady, setChatModelReady] = useState(false);
+    const [chatModelStatus, setChatModelStatus] = useState<Status | null>(null);
     const [starting, setStarting] = useState(true);
 
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Msg[]>([
         { role: "system", content: "You are a helpful assistant." },
     ]);
+    const [lastRetrieved, setLastRetrieved] = useState<SearchResult[]>([]);
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [lastError, setLastError] = useState<string | null>(null);
@@ -26,10 +28,10 @@ function App() {
         endRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const statusLabel = useMemo(() => {
-        if (!status) return "unknown";
-        return status.status;
-    }, [status]);
+    const chatModelStatusLabel = useMemo(() => {
+        if (!chatModelStatus) return "unknown";
+        return chatModelStatus.status;
+    }, [chatModelStatus]);
 
     const statusStyle: React.CSSProperties = useMemo(() => {
         const base: React.CSSProperties = {
@@ -42,12 +44,12 @@ function App() {
             border: "1px solid #ddd",
             userSelect: "none",
         };
-        if (!status) return base;
-        if (status.status === "running") return { ...base, borderColor: "#b7eb8f" };
-        if (status.status === "starting") return { ...base, borderColor: "#ffe58f" };
-        if (status.status === "error") return { ...base, borderColor: "#ffa39e" };
+        if (!chatModelStatus) return base;
+        if (chatModelStatus.status === "running") return { ...base, borderColor: "#b7eb8f" };
+        if (chatModelStatus.status === "starting") return { ...base, borderColor: "#ffe58f" };
+        if (chatModelStatus.status === "error") return { ...base, borderColor: "#ffa39e" };
         return base;
-    }, [status]);
+    }, [chatModelStatus]);
 
     useEffect(() => {
         let mounted = true;
@@ -60,13 +62,13 @@ function App() {
                 await window.api.embedder.start();
                 const st: Status = await window.llama.status();
                 if (!mounted) return;
-                setStatus(st);
-                setReady(st.status === "running" || st.status === "starting"); // allow UI; chat guarded below
+                setChatModelStatus(st);
+                setChatModelReady(st.status === "running" || st.status === "starting"); // allow UI; chat guarded below
             } catch (e: any) {
                 if (!mounted) return;
                 setLastError(String(e?.message ?? e));
-                setReady(false);
-                setStatus({ status: "error", port: 0, baseUrl: "" });
+                setChatModelReady(false);
+                setChatModelStatus({ status: "error", port: 0, baseUrl: "" });
             } finally {
                 if (mounted) setStarting(false);
             }
@@ -75,7 +77,7 @@ function App() {
         const interval = setInterval(async () => {
             try {
                 const st: Status = await window.llama.status();
-                if (mounted) setStatus(st);
+                if (mounted) setChatModelStatus(st);
             } catch {
                 // ignore
             }
@@ -105,9 +107,6 @@ function App() {
 
         const userMsg: Msg = { role: "user", content };
 
-        // Build messages from the latest state
-        const nextMessages = [...messagesRef.current, userMsg];
-
         // Optimistic UI update: add user message + empty assistant message (we'll fill it with deltas)
         setMessages((prev) => [...prev, userMsg, { role: "assistant", content: "" }]);
 
@@ -116,6 +115,26 @@ function App() {
             (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
 
         setIsGenerating(true);
+
+        // NEW: retrieve relevant chunks before calling the model
+        let ragResults: SearchResult[] = [];
+        let ragSystemMsg: Msg | null = null;
+
+        try {
+            ragResults = await window.api.rag.search(content, 5);
+            setLastRetrieved(ragResults);
+            ragSystemMsg = buildRagSystemMessage(ragResults);
+        } catch (e: any) {
+            // retrieval failure should not necessarily block chat
+            console.error("RAG search failed:", e);
+            setLastError(`RAG search failed: ${String(e?.message ?? e)}`);
+        }
+
+        const history = messagesRef.current;
+        const nextMessages = ragSystemMsg
+            ? [...history, ragSystemMsg, userMsg]
+            : [...history, userMsg];
+
 
         // Subscribe to streaming events
         const offDelta = window.llama.onChatStreamDelta?.((payload: any) => {
@@ -171,13 +190,39 @@ function App() {
             window.llama.chatStreamStart({
                 requestId,
                 messages: nextMessages,
-                temperature: 0.7,
+                temperature: 0.2,
             });
         } catch (e: any) {
             setIsGenerating(false);
             setLastError(String(e?.message ?? e));
             cleanup();
         }
+    };
+
+    const buildRagSystemMessage = (results: SearchResult[]): Msg | null => {
+        if (!results.length) return null;
+
+        const context = results
+            .map((r, i) => {
+                return [
+                    `Source ${i + 1}:`,
+                    `File: ${r.fileName}`,
+                    `Path: ${r.documentPath}`,
+                    `Distance: ${r.distance}`,
+                    `Content:`,
+                    r.content,
+                ].join("\n");
+            })
+            .join("\n\n---\n\n");
+
+        return {
+            role: "system",
+            content:
+                "Use the retrieved context below to answer the user's question. " +
+                "Prefer the retrieved context when it is relevant. " +
+                "If the context is insufficient, say so plainly.\n\n" +
+                context,
+        };
     };
 
     return (
@@ -210,27 +255,27 @@ function App() {
                                     height: 8,
                                     borderRadius: 999,
                                     background:
-                                        statusLabel === "running"
+                                        chatModelStatusLabel === "running"
                                             ? "#52c41a"
-                                            : statusLabel === "starting"
+                                            : chatModelStatusLabel === "starting"
                                                 ? "#faad14"
-                                                : statusLabel === "error"
+                                                : chatModelStatusLabel === "error"
                                                     ? "#ff4d4f"
                                                     : "#bfbfbf",
                                 }}
                             />
                             <span style={{ textTransform: "capitalize" }}>
-                                {starting ? "starting…" : statusLabel}
+                                {starting ? "starting…" : chatModelStatusLabel}
                             </span>
-                            {status?.baseUrl ? (
-                                <span style={{ opacity: 0.7 }}>{status.baseUrl}</span>
+                            {chatModelStatus?.baseUrl ? (
+                                <span style={{ opacity: 0.7 }}>{chatModelStatus.baseUrl}</span>
                             ) : null}
                         </span>
                     </div>
                     <div style={{ marginTop: 6, color: "#666", fontSize: 13 }}>
                         {starting && "Booting local model…"}
-                        {!starting && status?.status === "running" && "Ready."}
-                        {!starting && status?.status === "error" && "Sidecar error — check logs."}
+                        {!starting && chatModelStatus?.status === "running" && "Chat Model Ready."}
+                        {!starting && chatModelStatus?.status === "error" && "Sidecar error — check logs."}
                     </div>
                 </div>
 
@@ -242,8 +287,8 @@ function App() {
                             try {
                                 await window.llama.start();
                                 const st: Status = await window.llama.status();
-                                setStatus(st);
-                                setReady(true);
+                                setChatModelStatus(st);
+                                setChatModelReady(true);
                             } catch (e: any) {
                                 setLastError(String(e?.message ?? e));
                             } finally {
@@ -343,6 +388,55 @@ function App() {
                 <div ref={endRef} />
             </div>
 
+            {/* RAG Results */}
+            {lastRetrieved.length > 0 ? (
+                <div
+                    style={{
+                        marginTop: 12,
+                        border: "1px solid #e5e5e5",
+                        borderRadius: 12,
+                        padding: 12,
+                        background: "#fafafa",
+                    }}
+                >
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+                        Retrieved context
+                    </div>
+
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "row",
+                            gap: 8,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        {lastRetrieved.map((r) => (
+                            <div
+                                key={r.chunkId}
+                                style={{
+                                    padding: 10,
+                                    border: "1px solid #eee",
+                                    borderRadius: 10,
+                                    background: "#fff",
+                                }}
+                            >
+                                <div style={{ fontSize: 12, marginBottom: 4 }}>
+                                    {r.fileName}
+                                </div>
+                                <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+                                    distance {r.distance.toFixed(2)}
+                                </div>
+                                {/* <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>
+                                    {r.content}
+                                </div> */}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Input */}
             <div style={{ marginTop: 12 }}>
                 <textarea
                     style={{
@@ -359,7 +453,7 @@ function App() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
-                    disabled={!ready || starting}
+                    disabled={!chatModelReady || starting}
                     onKeyDown={(e) => {
                         // Enter sends; Shift+Enter inserts newline
                         if (e.key === "Enter" && !e.shiftKey && !(e as any).isComposing) {
@@ -375,13 +469,13 @@ function App() {
                     </div>
                     <button
                         onClick={send}
-                        disabled={!ready || starting || isGenerating || !input.trim()}
+                        disabled={!chatModelReady || starting || isGenerating || !input.trim()}
                         style={{
                             padding: "10px 14px",
                             borderRadius: 12,
                             border: "1px solid #ddd",
-                            background: !ready || starting || isGenerating || !input.trim() ? "#fafafa" : "#fff",
-                            cursor: !ready || starting || isGenerating || !input.trim() ? "not-allowed" : "pointer",
+                            background: !chatModelReady || starting || isGenerating || !input.trim() ? "#fafafa" : "#fff",
+                            cursor: !chatModelReady || starting || isGenerating || !input.trim() ? "not-allowed" : "pointer",
                         }}
                     >
                         Send

@@ -38,7 +38,7 @@ export class VectorStore {
         const db = getDb()
 
         const stat = fs.statSync(filePath)
-        const updatedAtMs = stat.mtimeMs
+        const updatedAtMs = Math.trunc(stat.mtimeMs)
 
         const existingDoc = db
             .prepare("SELECT id, updated_at_ms FROM documents WHERE path = ?")
@@ -97,19 +97,19 @@ export class VectorStore {
                 documentId = Number(result.lastInsertRowid)
             }
 
-            const insertChunk = db.prepare(`
-        INSERT INTO chunks (document_id, chunk_index, content)
-        VALUES (?, ?, ?)
-      `)
+            const insertChunk = db.prepare(
+                `INSERT INTO chunks (document_id, chunk_index, content)
+                VALUES (?, ?, ?)`
+            )
 
-            const insertEmbedding = db.prepare(`
-        INSERT INTO chunk_embeddings (chunk_id, embedding)
-        VALUES (?, ?)
-      `)
+            const insertEmbedding = db.prepare(
+                `INSERT INTO chunk_embeddings (chunk_id, embedding)
+                VALUES (CAST(? AS INTEGER), vec_f32(?))`
+            )
 
             for (let i = 0; i < chunks.length; i += 1) {
                 const chunkResult = insertChunk.run(documentId!, i, chunks[i])
-                const chunkId = Number(chunkResult.lastInsertRowid)
+                const chunkId = chunkResult.lastInsertRowid
 
                 insertEmbedding.run(chunkId, serializeVector(embeddings[i]))
             }
@@ -186,6 +186,8 @@ export class VectorStore {
     }
 }
 
+
+// Helpers
 function walkDirectory(rootPath: string): string[] {
     const results: string[] = []
 
@@ -236,7 +238,6 @@ function chunkText(text: string, chunkSize = 800, overlap = 120) {
 }
 
 function serializeVector(vector: number[]): Buffer {
-    const f32 = new Float32Array(vector);
-    return Buffer.from(f32.buffer);
+    return Buffer.from(new Float32Array(vector).buffer)
 }
 
