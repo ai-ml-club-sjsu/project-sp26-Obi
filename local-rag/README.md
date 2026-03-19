@@ -1,6 +1,6 @@
 # Obsidian RAG
 
-## Install Guide
+## Install Guide (MAC)
 
 In the CLI
 
@@ -22,11 +22,15 @@ Download `nomic-embed-text-v2-moe.Q4_K_M.gguf` for embed model
 
 ### Potential Errors:
 
-#### Mac
-
 `Apple could not verify “llama-server” is free of malware that may harm your Mac or compromise your privacy.`
 
 - You'll need to sign the binaries in order for mac to trust it, simply copy paste the error into chatGPT and it'll lead you through
+
+---
+
+## Install Guide (Windows)
+
+Coming soon...
 
 ---
 
