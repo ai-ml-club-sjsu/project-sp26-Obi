@@ -1,45 +1,123 @@
-# Obsidian RAG
+# AI/ML Club - [Project Title]
 
-## Install Guide
+**Academic Year:** 2026 Fall Semester  
+**Project Duration:** January 2026 - May 2025
 
-- `git clone git@github.com:durpdur/Obsidian_RAG.git`
-- navigate to `local-rag`
-- `npm install`
-- `npx electron-rebuild`
-  - Fixes `The module better_sqlite3.node was compiled against a different Node.js version using`
+## Project Description
 
-In resources/models, place your `.gguf` models
+[Brief description of your project - 2-3 sentences explaining what the project aims to accomplish and its main objectives.]
 
-Download `Qwen3.5-2B-Q4_K_M.gguf` for text model
+**Key Objectives:**
 
-- https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/tree/main
+- [Objective 1]
+- [Objective 2]
+- [Objective 3]
+- [Objective 4]
 
-Download `nomic-embed-text-v2-moe.Q4_K_M.gguf` for embed model
+## Lead Contact Information
 
-- https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/tree/main
+**Project Lead:** [Lead Name]  
+📧 Email: [email@university.edu]  
+💼 LinkedIn: [LinkedIn Profile URL]  
+📱 Phone: [Phone Number]  
+🏢 Office Hours: [Days and Times], [Location]
 
-### Potential Errors:
+**Faculty Advisor:** [Advisor Name]  
+📧 Email: [advisor.email@university.edu]  
+🏢 Office: [Building Name, Room Number]
 
-#### Mac
+## Contributors
 
-`Apple could not verify “llama-server” is free of malware that may harm your Mac or compromise your privacy.`
+_For detailed member information including LinkedIn profiles and Discord handles, see [docs/members.csv](docs/members.csv)_
 
-- You'll need to sign the binaries in order for mac to trust it, simply copy paste the error into chatGPT and it'll lead you through
+| Name            | Role                          | Email                  | GitHub                                          |
+| --------------- | ----------------------------- | ---------------------- | ----------------------------------------------- |
+| [Lead Name]     | Project Lead & [Primary Role] | [email@university.edu] | [@github-username](https://github.com/username) |
+| [Member Name 2] | [Role]                        | [email@university.edu] | [@github-username](https://github.com/username) |
+| [Member Name 3] | [Role]                        | [email@university.edu] | [@github-username](https://github.com/username) |
+| [Member Name 4] | [Role]                        | [email@university.edu] | [@github-username](https://github.com/username) |
+
+## Project Kanban Board
+
+**🔗 Public Board:** [View our Kanban Board](https://github.com/aiml-club/[repo-name]/projects/1)
+
+## Repository Structure
+
+```
+[project-repo-name]/
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── LICENSE
+├── docs/
+│   ├── members.csv             # Team member details with LinkedIn & Discord
+│   ├── info.json               # Project metadata for website automation
+│   ├── thumbnail.webp          # Project thumbnail image
+│   └── pitch_slides.pdf        # Project presentation slides
+└── [additional_folder]/
+```
+
+## Quick Start Guide
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Git
+- [Additional requirement 1]
+- [Additional requirement 2]
+
+### Installation Guide
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/aiml-club/[repo-name].git
+   cd [repo-name]
+   ```
+
+2. **Create virtual environment:**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **[Additional setup step]:**
+   ```bash
+   [command or instruction]
+   ```
+
+## Technology Stack
+
+- **Programming Language:** [Primary Language]
+- **ML/AI Libraries:** [Library 1], [Library 2], [Library 3]
+- **Development:** [Development Tools]
+- **Version Control:** Git & GitHub
+- **[Category]:** [Tools/Technologies]
+- **Database:** [Database Technology]
+- **Deployment:** [Deployment Platform/Tools]
+
+## License
+
+This project is licensed under the [License Type] License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Acknowledgment 1]
+- [Acknowledgment 2]
+- [Acknowledgment 3]
 
 ---
 
-## General
+**Last Updated:** [Date]  
+**Next Review:** [Date]
 
-Before trying to push a change into the repo, please understand the below concepts.
+---
 
-- What is the main branch?
-- What is a branch?
-- What is a merge request?
-
-- How to commit
-- How to push
-- how to pull
-
-- How to handle a merge conflict
-
-- [Git Basics](https://webtuu.com/blog/04/git-basics-branching-merging-push-to-github)
+_This README follows the AI/ML Club standard template. For questions about the template or suggestions for improvements, contact the club leadership team._
