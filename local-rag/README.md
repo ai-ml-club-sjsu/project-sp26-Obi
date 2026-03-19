@@ -30,7 +30,13 @@ Download `nomic-embed-text-v2-moe.Q4_K_M.gguf` for embed model
 
 ## Install Guide (Windows)
 
-Coming soon...
+Download llama.cpp binaries
+
+- https://github.com/ggml-org/llama.cpp/releases?page=1
+
+Replace the binaries in resources/bin
+
+In progress...
 
 ---
 
